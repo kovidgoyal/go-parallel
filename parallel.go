@@ -101,7 +101,7 @@ func Run_in_parallel_over_range(num_procs int, f func(int, int), start, limit in
 	}
 	chunk_sz := max(1, num_items/num_procs)
 	var wg sync.WaitGroup
-	echan := make(chan error, num_procs)
+	echan := make(chan error, num_items/chunk_sz+1)
 	for start < limit {
 		end := min(start+chunk_sz, limit)
 		wg.Add(1)
@@ -145,7 +145,7 @@ func Run_in_parallel_over_range_with_error(num_procs int, f func(int, int) error
 	}
 	chunk_sz := max(1, num_items/num_procs)
 	var wg sync.WaitGroup
-	echan := make(chan error, num_procs)
+	echan := make(chan error, num_items/chunk_sz+1)
 	for start < limit {
 		end := min(start+chunk_sz, limit)
 		wg.Add(1)
