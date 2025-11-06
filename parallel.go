@@ -171,7 +171,6 @@ func Run_in_parallel_over_range_with_error(num_procs int, f func(int, int) error
 func Run_in_parallel_to_first_result(num_procs int, f func(start, limit int, keep_going *atomic.Bool) bool, start, limit int) (err error) {
 	var keep_going atomic.Bool
 	keep_going.Store(true)
-	defer func() { keep_going.Store(false) }()
 	num_items := limit - start
 	if num_procs <= 0 {
 		num_procs = runtime.GOMAXPROCS(0)
@@ -189,7 +188,7 @@ func Run_in_parallel_to_first_result(num_procs int, f func(start, limit int, kee
 	chunk_sz := max(1, num_items/num_procs)
 	var wg sync.WaitGroup
 	var err_once sync.Once
-	ch := make(chan bool)
+	ch := make(chan bool, num_items/chunk_sz+1)
 	for start < limit {
 		end := min(start+chunk_sz, limit)
 		wg.Add(1)
@@ -214,5 +213,7 @@ func Run_in_parallel_to_first_result(num_procs int, f func(start, limit int, kee
 			break
 		}
 	}
+	keep_going.Store(false)
+	wg.Wait()
 	return
 }
