@@ -2,7 +2,9 @@ package parallel
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -21,6 +23,39 @@ func panicking_callback(start, limit int) {
 func filler(items []int, start, limit int) {
 	for i := start; i < limit; i++ {
 		items[i] = i
+	}
+}
+
+func TestToFirstResult(t *testing.T) {
+	n := 300 * runtime.GOMAXPROCS(0)
+	var num_early_aborts atomic.Int32
+	for i := range n + 1 {
+		data := make([]uint8, n)
+		expected := -1
+		if i < n {
+			data[i] = 1
+			expected = i
+		}
+		ans := -1
+		Run_in_parallel_to_first_result(0, func(start, limit int, keep_going *atomic.Bool) bool {
+			for i := start; i < limit; i++ {
+				if !keep_going.Load() {
+					num_early_aborts.Add(1)
+					return false
+				}
+				if data[i] == 1 {
+					ans = i
+					return true
+				}
+			}
+			return false
+		}, 0, len(data))
+		if ans != expected {
+			t.Fatalf("want: %d got: %d", i, ans)
+		}
+	}
+	if num_early_aborts.Load() == 0 {
+		t.Fatalf("there were no early aborts, boohoo")
 	}
 }
 
